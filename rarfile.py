@@ -1185,9 +1185,71 @@ class DirectReader(BaseReader):
         self.fd.seek(self.inf.header_offset, 0)
         self.cur = self.rf._parse_header(self.fd)
         self.cur_avail = self.cur.add_size
+        self.pos = 0
+
+    def seek(self, cnt, whence = 0):
+        if whence == 0:     # seek from beginning of file
+            if cnt < 0: # you can't seek backwards from the beginning of a file
+                raise IOError("Invalid argument")
+
+            if cnt == self.pos: # we are at the right spot
+                return
+            if cnt > self.pos:  # we need to go forward
+                self._seek(cnt)
+            if cnt < self.pos:  # we need to go backwards from current position
+                # .. which we really can't so we go to 0 and seek forward from there
+                self.fd.seek(self.inf.header_offset, 0)
+                self.cur = self.rf._parse_header(self.fd)
+                self.cur_avail = self.cur.add_size
+                self._seek(cnt)
+
+        elif whence == 1:   # seek from current position
+            if cnt < 0:     # we need to go backwards
+                # we don't know how, so calc wanted position
+                want = self.pos - cnt
+                # and do it by searching from beginning instead
+                self.seek(want)
+            else:
+                self._seek(cnt)
+
+        elif whence == 2:   # seek from end of file
+            if cnt > 0:
+                # you can't seek forwards from end of file
+                raise IOError("Invalid argument")
+
+            # we need to go backwards
+            # we don't know how, so calc wanted position
+            want = self.size + cnt
+            # and do it by searching from beginning instead
+            self.seek(want)
+
+
+
+    def _seek(self, cnt):
+        """RAR Seek, skipping through rar files to get to correct position
+        """
+        # TODO: seek backwards? :)
+        # TODO: when this is smarter, merge with seek()
+        self.pos += cnt
+
+        while cnt > 0:
+            # next vol needed?
+            if self.cur_avail == 0:
+                if not self._open_next():
+                    break
+
+            # fd is in read pos, do the read
+            if cnt > self.cur_avail:
+                cnt -= self.cur_avail
+                self.cur_avail -= self.cur_avail
+            else:
+                self.fd.seek(cnt, 1)
+                self.cur_avail -= cnt
+                cnt = 0
 
     def _read(self, cnt):
         """Read from potentially multi-volume archive."""
+        self.pos += cnt
 
         buf = EMPTY
         while cnt > 0:
