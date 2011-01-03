@@ -1191,9 +1191,9 @@ class DirectReader(BaseReader):
         if whence == 0:     # seek from beginning of file
             if cnt < 0: # you can't seek backwards from the beginning of a file
                 raise IOError("Invalid argument")
-            if cnt == self.pos: # we are at the right spot
+            elif cnt == self.pos: # we are at the right spot
                 return
-            if cnt == 0:
+            elif cnt == 0:
                 self.volfile = self.inf.volume_file
                 self.size = self.inf.file_size
                 self.fd = open(self.volfile, "rb")
@@ -1201,10 +1201,10 @@ class DirectReader(BaseReader):
                 self.cur = self.rf._parse_header(self.fd)
                 self.cur_avail = self.cur.add_size
                 self.pos = 0
-            if cnt > self.pos:  # we need to go forward
+            elif cnt > self.pos:  # we need to go forward
                 want = cnt - self.pos
                 self._seek(want)
-            if cnt < self.pos:  # we need to go backwards from current position
+            elif cnt < self.pos:  # we need to go backwards from current position
                 # .. which we really can't so we seek 0 and seek forward from there, haxx :(
                 self.seek(0)
                 self.seek(cnt)
